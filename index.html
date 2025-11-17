@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>날씨별 점심메뉴 추천</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 30px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .location-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .weather-info {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            color: white;
+            text-align: center;
+        }
+
+        .weather-icon {
+            font-size: 4em;
+            margin-bottom: 10px;
+        }
+
+        .temp {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .weather-desc {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .menu-card {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .menu-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        .menu-title {
+            font-size: 2em;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .menu-desc {
+            font-size: 1.1em;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-size: 1.2em;
+            padding: 20px;
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            border-radius: 15px;
+            padding: 20px;
+            color: #c33;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .city-examples {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ 날씨별 점심메뉴 추천</h1>
+        
+        <div class="location-input">
+            <input type="text" id="cityInput" placeholder="도시명 입력 (예: Seoul)" value="Seoul">
+            <button onclick="getWeatherAndMenu()">메뉴 추천받기</button>
+        </div>
+        <div class="city-examples">
+            예시: Seoul, Busan, Incheon, Tokyo, London
+        </div>
+
+        <div id="loading" class="loading hidden">날씨 정보를 가져오는 중...</div>
+        <div id="error" class="error hidden"></div>
+        
+        <div id="weatherInfo" class="hidden"></div>
+        <div id="menuCard" class="hidden"></div>
+    </div>
+
+    <script>
+        const menuData = {
+            clear: [
+                { icon: '🍉', name: '시원한 냉면', desc: '맑은 날씨에는 시원하고 상큼한 냉면이 최고!' },
+                { icon: '🥗', name: '샐러드', desc: '화창한 날, 가볍고 건강한 샐러드로 상쾌하게!' },
+                { icon: '🍱', name: '김밥', desc: '날씨 좋은 날 밖에서 먹는 김밥 어때요?' }
+            ],
+            cloudy: [
+                { icon: '🍜', name: '칼국수', desc: '흐린 날씨엔 따뜻한 칼국수가 제격!' },
+                { icon: '🍲', name: '부대찌개', desc: '구름 낀 날, 얼큰한 부대찌개로 기운내요!' },
+                { icon: '🍝', name: '파스타', desc: '잔잔한 날씨엔 부드러운 크림파스타!' }
+            ],
+            rainy: [
+                { icon: '🍲', name: '김치찌개', desc: '비 오는 날엔 역시 얼큰한 김치찌개!' },
+                { icon: '🍜', name: '라면', desc: '비 맞으며 먹는 라면, 생각만 해도 행복!' },
+                { icon: '🥘', name: '해물파전', desc: '비 오는 날의 클래식! 파전에 막걸리 한 잔?' }
+            ],
+            snowy: [
+                { icon: '🍲', name: '된장찌개', desc: '눈 오는 날, 구수한 된장찌개로 몸을 녹여요!' },
+                { icon: '🍜', name: '우동', desc: '따뜻한 국물의 우동으로 추위를 이겨내요!' },
+                { icon: '🥟', name: '만두국', desc: '눈 내리는 날엔 따끈한 만두국이죠!' }
+            ],
+            cold: [
+                { icon: '🍲', name: '순두부찌개', desc: '쌀쌀한 날씨엔 부드럽고 얼큰한 순두부찌개!' },
+                { icon: '🍜', name: '짬뽕', desc: '추운 날 매콤한 짬뽕 한 그릇!' },
+                { icon: '🍛', name: '카레', desc: '따뜻한 카레로 몸을 녹여요!' }
+            ],
+            hot: [
+                { icon: '🍧', name: '냉면', desc: '더운 날씨엔 시원한 냉면이 최고!' },
+                { icon: '🥗', name: '샐러드', desc: '무더운 날, 가볍게 샐러드 어때요?' },
+                { icon: '🍜', name: '콩국수', desc: '여름엔 역시 시원한 콩국수!' }
+            ]
+        };
+
+        const cities = {
+            'Seoul': { lat: 37.5665, lon: 126.9780, name: '서울' },
+            'Busan': { lat: 35.1796, lon: 129.0756, name: '부산' },
+            'Incheon': { lat: 37.4563, lon: 126.7052, name: '인천' },
+            'Daegu': { lat: 35.8714, lon: 128.6014, name: '대구' },
+            'Daejeon': { lat: 36.3504, lon: 127.3845, name: '대전' },
+            'Gwangju': { lat: 35.1595, lon: 126.8526, name: '광주' },
+            'Tokyo': { lat: 35.6762, lon: 139.6503, name: '도쿄' },
+            'London': { lat: 51.5074, lon: -0.1278, name: '런던' },
+            'Paris': { lat: 48.8566, lon: 2.3522, name: '파리' },
+            'New York': { lat: 40.7128, lon: -74.0060, name: '뉴욕' }
+        };
+
+        async function getWeatherAndMenu() {
+            const cityInput = document.getElementById('cityInput').value.trim();
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const weatherInfo = document.getElementById('weatherInfo');
+            const menuCard = document.getElementById('menuCard');
+
+            if (!cityInput) {
+                showError('도시명을 입력해주세요!');
+                return;
+            }
+
+            // 도시 찾기 (대소문자 구분 없이)
+            const cityKey = Object.keys(cities).find(
+                key => key.toLowerCase() === cityInput.toLowerCase()
+            );
+
+            if (!cityKey) {
+                showError('지원하지 않는 도시입니다. 예시 도시를 참고해주세요!');
+                return;
+            }
+
+            const city = cities[cityKey];
+
+            loading.classList.remove('hidden');
+            error.classList.add('hidden');
+            weatherInfo.classList.add('hidden');
+            menuCard.classList.add('hidden');
+
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,weather_code,precipitation&timezone=auto`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error('날씨 정보를 가져올 수 없습니다.');
+                }
+
+                const data = await response.json();
+                displayWeather(data, city.name);
+                displayMenu(data);
+            } catch (err) {
+                showError('날씨 정보를 가져올 수 없습니다. 잠시 후 다시 시도해주세요.');
+                console.error(err);
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function getWeatherType(weatherCode, temp, precipitation) {
+            // 눈 (85-86)
+            if (weatherCode >= 85 && weatherCode <= 86) return 'snowy';
+            
+            // 비 (51-67, 80-82)
+            if ((weatherCode >= 51 && weatherCode <= 67) || 
+                (weatherCode >= 80 && weatherCode <= 82) || 
+                precipitation > 0) {
+                return 'rainy';
+            }
+            
+            // 맑음 (0-2)
+            if (weatherCode <= 2) {
+                if (temp > 25) return 'hot';
+                if (temp < 10) return 'cold';
+                return 'clear';
+            }
+            
+            // 흐림 (3)
+            if (weatherCode === 3) {
+                if (temp < 10) return 'cold';
+                return 'cloudy';
+            }
+            
+            // 안개 (45-48)
+            if (weatherCode >= 45 && weatherCode <= 48) {
+                if (temp < 10) return 'cold';
+                return 'cloudy';
+            }
+            
+            // 기본값
+            if (temp < 10) return 'cold';
+            if (temp > 25) return 'hot';
+            return 'clear';
+        }
+
+        function getWeatherIcon(weatherCode) {
+            if (weatherCode >= 85 && weatherCode <= 86) return '❄️';
+            if ((weatherCode >= 51 && weatherCode <= 67) || (weatherCode >= 80 && weatherCode <= 82)) return '🌧️';
+            if (weatherCode <= 2) return '☀️';
+            if (weatherCode === 3) return '☁️';
+            if (weatherCode >= 45 && weatherCode <= 48) return '🌫️';
+            return '🌤️';
+        }
+
+        function getWeatherDesc(weatherCode) {
+            if (weatherCode >= 85 && weatherCode <= 86) return '눈';
+            if ((weatherCode >= 51 && weatherCode <= 67) || (weatherCode >= 80 && weatherCode <= 82)) return '비';
+            if (weatherCode === 0) return '맑음';
+            if (weatherCode <= 2) return '대체로 맑음';
+            if (weatherCode === 3) return '흐림';
+            if (weatherCode >= 45 && weatherCode <= 48) return '안개';
+            return '구름';
+        }
+
+        function displayWeather(data, cityName) {
+            const weatherInfo = document.getElementById('weatherInfo');
+            const temp = Math.round(data.current.temperature_2m);
+            const weatherCode = data.current.weather_code;
+            const icon = getWeatherIcon(weatherCode);
+            const desc = getWeatherDesc(weatherCode);
+            
+            weatherInfo.innerHTML = `
+                <div class="weather-icon">${icon}</div>
+                <div class="weather-desc">${cityName}</div>
+                <div class="temp">${temp}°C</div>
+                <div class="weather-desc">${desc}</div>
+            `;
+            weatherInfo.classList.remove('hidden');
+        }
+
+        function displayMenu(data) {
+            const menuCard = document.getElementById('menuCard');
+            const temp = data.current.temperature_2m;
+            const weatherCode = data.current.weather_code;
+            const precipitation = data.current.precipitation;
+            
+            const weatherType = getWeatherType(weatherCode, temp, precipitation);
+            const menus = menuData[weatherType];
+            const randomMenu = menus[Math.floor(Math.random() * menus.length)];
+
+            menuCard.innerHTML = `
+                <div class="menu-icon">${randomMenu.icon}</div>
+                <div class="menu-title">${randomMenu.name}</div>
+                <div class="menu-desc">${randomMenu.desc}</div>
+            `;
+            menuCard.classList.remove('hidden');
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.classList.remove('hidden');
+        }
+
+        // 엔터키로도 실행 가능
+        document.getElementById('cityInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                getWeatherAndMenu();
+            }
+        });
+
+        // 페이지 로드 시 자동으로 서울 날씨로 추천
+        window.addEventListener('load', function() {
+            getWeatherAndMenu();
+        });
+    </script>
+</body>
+</html>
